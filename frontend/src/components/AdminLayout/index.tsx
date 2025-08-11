@@ -1,18 +1,15 @@
 import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'; // 1. Importe o useNavigate
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Bell, UserCircle } from 'lucide-react';
 
 export default function AdminLayout() {
-  const navigate = useNavigate(); // 2. Inicialize o hook
+  const navigate = useNavigate();
 
-  // 3. Crie a função de logout
   const handleLogout = () => {
-    // No futuro, aqui entraria a lógica para limpar os dados de login do admin
     console.log("Administrador deslogado!");
-    navigate('/admin/login'); // Redireciona para o login do admin
+    navigate('/admin/login');
   };
 
-  // Helper para estilizar o link ativo
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'font-bold text-black' : 'text-gray-600 hover:text-black';
 
@@ -26,12 +23,12 @@ export default function AdminLayout() {
           <NavLink to="/admin/reservations" className={getNavLinkClass}>Reservas</NavLink>
           <NavLink to="/admin/menu" className={getNavLinkClass}>Cardápio</NavLink>
           <NavLink to="/admin/settings" className={getNavLinkClass}>Configurações da loja</NavLink>
-          <NavLink to="/admin/profile" className={getNavLinkClass}>Perfil</NavLink>
+          {/* O link de Perfil agora é Funcionários e aponta para a nova rota */}
+          <NavLink to="/admin/employees" className={getNavLinkClass}>Funcionários</NavLink>
         </nav>
         <div className="flex items-center gap-6">
           <Bell size={24} className="text-gray-600 cursor-pointer" />
           <UserCircle size={32} className="text-gray-600 cursor-pointer" />
-          {/* 4. Adicione o botão de Sair */}
           <button onClick={handleLogout} className="font-semibold text-gray-600 hover:text-black">
             Sair
           </button>

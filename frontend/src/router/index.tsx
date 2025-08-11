@@ -11,7 +11,8 @@ import AdminSignupPage from "../pages/AdminSignupPage";
 import AdminLayout from "../components/AdminLayout";
 import AdminReservationsPage from "../pages/AdminReservationsPage";
 import AdminMenuPage from "../pages/AdminMenuPage";
-import AdminSettingsPage from "../pages/AdminSettingsPage"; // 1. Importe a nova página
+import AdminSettingsPage from "../pages/AdminSettingsPage";
+import AdminEmployeesPage from "../pages/AdminEmployeesPage"; // 1. Importe a nova página
 
 export default function Router() {
     return (
@@ -35,7 +36,8 @@ export default function Router() {
             <Route path="/admin" element={<AdminLayout />}>
                 <Route path="reservations" element={<AdminReservationsPage />} />
                 <Route path="menu" element={<AdminMenuPage />} />
-                <Route path="settings" element={<AdminSettingsPage />} /> {/* 2. Adicione a nova rota */}
+                <Route path="settings" element={<AdminSettingsPage />} />
+                <Route path="employees" element={<AdminEmployeesPage />} /> {/* 2. Adicione a nova rota */}
             </Route>
         </Routes>
     );

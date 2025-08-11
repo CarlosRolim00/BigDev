@@ -25,6 +25,7 @@ export const loginCliente = async (req, res) => {
     const cliente = clienteResult.rows[0];
     res.status(200).json({ message: "Login realizado com sucesso", usuario, cliente });
   } catch (error) {
+    console.log("error: ", error);
     res.status(500).json({ message: "Erro ao realizar login", error: error.message });
   }
 };
