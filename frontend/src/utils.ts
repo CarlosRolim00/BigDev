@@ -1,9 +1,118 @@
+// --- CARDÁPIO ---
+export async function getCardapios() {
+    const response = await fetch(`${API_BASE_URL}/cardapio`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao buscar cardápios');
+    }
+    return response.json();
+}
+
+export async function createCardapio(data: { nome: string, caminho_pdf: string, restaurante_id: number }) {
+    const response = await fetch(`${API_BASE_URL}/cardapio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao criar cardápio');
+    }
+    return response.json();
+}
+
+export async function updateCardapio(id: number, data: { nome: string, file?: File }) {
+    const formData = new FormData();
+    formData.append('nome', data.nome);
+    if (data.file) {
+        formData.append('file', data.file);
+    }
+    const response = await fetch(`${API_BASE_URL}/cardapio/${id}`, {
+        method: 'PUT',
+        body: formData
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao atualizar cardápio');
+    }
+    return response.json();
+}
+
+export async function deleteCardapio(id: number) {
+    const response = await fetch(`${API_BASE_URL}/cardapio/${id}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao remover cardápio');
+    }
+    return {};
+}
+// Função para cadastrar restaurante e criar funcionário gerente
+export async function registerRestauranteComGerente(
+    nome: string,
+    cnpj: string,
+    endereco: string,
+    telefone: string,
+    tipo_cozinha: string,
+    email: string,
+    senha: string
+) {
+    // 1. Cadastra o restaurante (enviando apenas os campos esperados)
+    const restaurante = await registerRestaurante(nome, cnpj, endereco, telefone, tipo_cozinha);
+    // 2. Cria funcionário gerente vinculado ao restaurante
+    const funcionarioResponse = await fetch(`${API_BASE_URL}/funcionario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nome: nome + ' (Gerente)',
+            email,
+            senha,
+            telefone, // telefone do restaurante também para o gerente
+            cargo: 'gerente', 
+            restaurante_id: restaurante.id || restaurante._id || restaurante.restaurante_id || restaurante.restauranteId || restauranteIdFromResponse(restaurante)
+        })
+    });
+    if (!funcionarioResponse.ok) {
+        const errorData = await funcionarioResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao criar funcionário gerente');
+    }
+    const funcionario = await funcionarioResponse.json();
+    return { restaurante, funcionario };
+}
+
+// Função auxiliar para extrair id do restaurante de diferentes formatos de resposta
+function restauranteIdFromResponse(restaurante: any) {
+    return restaurante.id || restaurante._id || restaurante.restaurante_id || restaurante.restauranteId;
+}
+// Função para cadastro de restaurante
+export async function registerRestaurante(
+    nome: string,
+    cnpj: string,
+    endereco: string,
+    telefone: string,
+    tipo_cozinha: string
+) {
+    const response = await fetch(`${API_BASE_URL}/restaurante`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, cnpj, endereco, telefone, tipo_cozinha })
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.message && errorData.message.toLowerCase().includes('cnpj')) {
+            throw new Error('Já existe um restaurante cadastrado com esse CNPJ.');
+        }
+        throw new Error(errorData.message || 'Erro ao cadastrar restaurante');
+    }
+    return response.json();
+}
 // Adicionar mesa ao restaurante
 export async function addTable(restaurante_id: number, numero: string | number, capacidade: string | number, localizacao: string) {
     const response = await fetch(`${API_BASE_URL}/mesa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurante_id, numero, capacidade, localizacao })
+        body: JSON.stringify({ restaurante_id, numero, capacidade, localizacao, status: 'disponivel' })
     });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -121,6 +230,60 @@ export async function registerUser(nome: string, email: string, senha: string, t
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Erro ao cadastrar');
+    }
+    return response.json();
+}
+
+// Funcionários
+export async function getFuncionarios(restaurante_id?: number) {
+    let url = `${API_BASE_URL}/funcionario`;
+    if (restaurante_id) {
+        url += `?restaurante_id=${restaurante_id}`;
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar funcionários');
+    }
+    return response.json();
+}
+
+export async function createFuncionario(data: any) {
+    const response = await fetch(`${API_BASE_URL}/funcionario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao criar funcionário');
+    }
+    return response.json();
+}
+
+export async function updateFuncionario(id: number, data: any) {
+    const response = await fetch(`${API_BASE_URL}/funcionario/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao atualizar funcionário');
+    }
+    return response.json();
+}
+
+export async function deleteFuncionario(id: number) {
+    const response = await fetch(`${API_BASE_URL}/funcionario/${id}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao remover funcionário');
+    }
+    // Se o status for 204 (No Content), não tente fazer parse de JSON
+    if (response.status === 204) {
+        return {};
     }
     return response.json();
 }

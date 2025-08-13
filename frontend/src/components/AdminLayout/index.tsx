@@ -7,7 +7,7 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     console.log("Administrador deslogado!");
-    navigate('/admin/login');
+    navigate('/restaurant-login');
   };
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) =>

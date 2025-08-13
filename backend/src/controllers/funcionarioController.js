@@ -38,10 +38,29 @@ export const createFuncionario = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const { nome, email, senha, telefone, cpf, cargo, restaurante_id } =
-      req.body;
+    const { nome, email, senha, telefone, cpf, cargo, restaurante_id } = req.body;
 
-    // 1. Cria o usuário
+    // Formatar CPF para xxx.xxx.xxx-xx
+    function formatCPF(cpfRaw) {
+      if (!cpfRaw) return '';
+      // Remove tudo que não for dígito
+      const digits = cpfRaw.replace(/\D/g, '');
+      if (digits.length !== 11) return cpfRaw; // Retorna como está se não for 11 dígitos
+      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    const cpfFormatado = formatCPF(cpf);
+
+    // 1. Verifica se já existe usuário com o mesmo e-mail
+    const emailExists = await client.query(
+      "SELECT id FROM usuario WHERE email = $1",
+      [email]
+    );
+    if (emailExists.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ message: "E-mail já cadastrado" });
+    }
+
+    // 2. Cria o usuário
     const usuarioResult = await client.query(
       "INSERT INTO usuario (nome, email, senha, telefone) VALUES ($1, $2, $3, $4) RETURNING id",
       [nome, email, senha, telefone]
@@ -51,7 +70,7 @@ export const createFuncionario = async (req, res) => {
     // 2. Cria o funcionário usando o usuario_id
     const funcionarioResult = await client.query(
       "INSERT INTO funcionario (usuario_id, cpf, cargo, restaurante_id) VALUES ($1, $2, $3, $4) RETURNING *",
-      [usuario_id, cpf, cargo, restaurante_id]
+      [usuario_id, cpfFormatado, cargo, restaurante_id]
     );
 
     await client.query("COMMIT");
@@ -69,9 +88,8 @@ export const updateFuncionario = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const { id } = req.params;
-    const { nome, email, senha, telefone, cargo, salario, status_funcionario } =
-      req.body;
+  const { id } = req.params;
+  const { nome, email, senha, telefone, cargo } = req.body;
 
     // Busca usuario_id do funcionário
     const funcionarioResult = await client.query(
@@ -90,10 +108,10 @@ export const updateFuncionario = async (req, res) => {
       [nome, email, senha, telefone, usuario_id]
     );
 
-    // Atualiza funcionário
+    // Atualiza funcionário (removendo salario)
     const result = await client.query(
-      "UPDATE funcionario SET cargo = $1, salario = $2, status_funcionario = $3 WHERE id = $4 RETURNING *",
-      [cargo, salario, status_funcionario, id]
+      "UPDATE funcionario SET cargo = $1 WHERE id = $2 RETURNING *",
+      [cargo, id]
     );
 
     await client.query("COMMIT");
@@ -142,11 +160,16 @@ export const deleteFuncionario = async (req, res) => {
 // Lista todos os funcionários
 export const getFuncionarios = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT f.*, u.nome as usuario_nome, u.email, u.telefone
+    const { restaurante_id } = req.query;
+    let query = `SELECT f.id, u.nome, f.cargo, u.email, f.cpf, u.telefone
        FROM funcionario f
-       JOIN usuario u ON f.usuario_id = u.id`
-    );
+       JOIN usuario u ON f.usuario_id = u.id`;
+    let params = [];
+    if (restaurante_id) {
+      query += ' WHERE f.restaurante_id = $1';
+      params.push(restaurante_id);
+    }
+    const result = await pool.query(query, params);
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ message: error.message });

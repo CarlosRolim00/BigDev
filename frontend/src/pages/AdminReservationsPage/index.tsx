@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Users, Clock } from 'lucide-react';
 import { getReservasByRestaurante } from '../../utils';
+import { getTablesByRestaurante, addTable } from '../../utils';
 import Modal from '../../components/Modal'; // 1. Importe o Modal
 
 const getStatusClass = (status: string) => {
@@ -12,14 +13,17 @@ const getStatusClass = (status: string) => {
     }
 };
 
-export default function AdminReservationsPage() {
+export default function xAdminReservationsPage() {
     const [reservations, setReservations] = useState<any[]>([]);
+    const [tables, setTables] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().substring(0, 10));
     
     // 2. Estado para controlar o modal de adicionar mesa
     const [isAddTableModalOpen, setIsAddTableModalOpen] = useState(false);
+    const [newTable, setNewTable] = useState({ numero: '', capacidade: '', localizacao: 'dentro' });
+    const [selectedLocation, setSelectedLocation] = useState('dentro');
 
     useEffect(() => {
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
@@ -30,24 +34,44 @@ export default function AdminReservationsPage() {
             return;
         }
         setLoading(true);
-        console.log('Buscando reservas para restaurante', restaurante_id, 'na data', selectedDate);
-        getReservasByRestaurante(restaurante_id, selectedDate)
-            .then(data => {
-                console.log('Reservas recebidas:', data);
-                setReservations(data);
+        Promise.all([
+            getReservasByRestaurante(restaurante_id, selectedDate),
+            getTablesByRestaurante(restaurante_id)
+        ])
+            .then(([reservas, mesas]) => {
+                setReservations(reservas);
+                setTables(mesas);
             })
             .catch((err) => {
-                setError('Erro ao buscar reservas do restaurante');
+                setError('Erro ao buscar reservas ou mesas do restaurante');
                 console.error(err);
             })
             .finally(() => setLoading(false));
     }, [selectedDate]);
 
-    const handleAddTableSubmit = (event: React.FormEvent) => {
+    const handleAddTableSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        // Aqui entraria a lógica para salvar a nova mesa no backend
-        alert('Nova mesa adicionada!');
-        setIsAddTableModalOpen(false);
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+        const restaurante_id = usuarioLogado.restaurante_id;
+        if (!restaurante_id) {
+            alert('Restaurante não identificado.');
+            return;
+        }
+        try {
+            await addTable(
+                restaurante_id,
+                newTable.numero,
+                newTable.capacidade,
+                newTable.localizacao
+            );
+            // Atualiza lista de mesas após adicionar
+            const mesasAtualizadas = await getTablesByRestaurante(restaurante_id);
+            setTables(mesasAtualizadas);
+            setNewTable({ numero: '', capacidade: '', localizacao: 'dentro' });
+            setIsAddTableModalOpen(false);
+        } catch (err: any) {
+            alert(err.message || 'Erro ao adicionar mesa');
+        }
     }
 
     return (
@@ -92,18 +116,30 @@ export default function AdminReservationsPage() {
                 <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold">Salão</h2>
-                        <select className="p-2 border rounded-md">
-                            <option>Salão Principal</option>
-                            <option>Área Externa</option>
+                        <select className="p-2 border rounded-md" value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)}>
+                            <option value="dentro">Salão Principal</option>
+                            <option value="fora">Área Externa</option>
                         </select>
                     </div>
                     <div className="grid grid-cols-4 md:grid-cols-6 gap-4 p-4 border rounded-md">
-                        {[1,2,3,4,5,6].map(id => (
-                            <div key={id} className={`p-4 rounded-md text-white text-center ${getStatusClass('Disponível')}`}>
-                                <p className="font-bold text-lg">{id}</p>
-                                <p className="text-xs">Disponível</p>
-                            </div>
-                        ))}
+                        {tables.length === 0 ? (
+                            <div className="col-span-4 text-center text-gray-500">Nenhuma mesa cadastrada.</div>
+                        ) : (
+                            tables
+                                .filter((mesa: any) => mesa.localizacao === selectedLocation)
+                                .map((mesa: any) => {
+                                    // Verifica se existe reserva para esta mesa na data selecionada
+                                    const reserva = reservations.find(r => r.mesa_id === mesa.id && r.status !== 'Cancelada');
+                                    let status = 'Disponível';
+                                    if (reserva && reserva.status === 'Reservado') status = 'Reservado';
+                                    return (
+                                        <div key={mesa.id} className={`p-4 rounded-md text-white text-center ${getStatusClass(status)}`}>
+                                            <p className="font-bold text-lg">{mesa.numero}</p>
+                                            <p className="text-xs">{status}</p>
+                                        </div>
+                                    );
+                                })
+                        )}
                     </div>
                     <div className="text-right mt-4">
                         {/* 3. Botão agora abre o modal */}
@@ -121,20 +157,20 @@ export default function AdminReservationsPage() {
                     <form className="space-y-4" onSubmit={handleAddTableSubmit}>
                         <div>
                             <label className="block text-sm font-medium">Número da Mesa</label>
-                            <input type="number" placeholder="Ex: 15" className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="number" name="numero" value={newTable.numero} onChange={e => setNewTable({ ...newTable, numero: e.target.value })} placeholder="Ex: 15" className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Número de Pessoas</label>
-                            <input type="number" placeholder="Ex: 4" className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="number" name="capacidade" value={newTable.capacidade} onChange={e => setNewTable({ ...newTable, capacidade: e.target.value })} placeholder="Ex: 4" className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-2">Localização</label>
                             <div className="flex gap-4">
                                 <label className="flex items-center gap-2">
-                                    <input type="radio" name="location" value="dentro" defaultChecked /> Dentro
+                                    <input type="radio" name="location" value="dentro" checked={newTable.localizacao === 'dentro'} onChange={() => setNewTable({ ...newTable, localizacao: 'dentro' })} /> Dentro
                                 </label>
                                 <label className="flex items-center gap-2">
-                                    <input type="radio" name="location" value="fora" /> Fora
+                                    <input type="radio" name="location" value="fora" checked={newTable.localizacao === 'fora'} onChange={() => setNewTable({ ...newTable, localizacao: 'fora' })} /> Fora
                                 </label>
                             </div>
                         </div>

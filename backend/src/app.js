@@ -1,6 +1,8 @@
+
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
+import path from "path";
 import avaliacaoRoutes from "./routes/avaliacaoRoutes.js";
 import cardapioRoutes from "./routes/cardapioRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
@@ -16,7 +18,10 @@ const app = express();
 // Permitir requisições de qualquer origem (CORS)
 app.use(cors());
 
+
 app.use(bodyParser.json());
+// Servir arquivos estáticos da pasta public
+app.use(express.static(path.resolve("public")));
 
 app.use("/avaliacao", avaliacaoRoutes);
 app.use("/cardapio", cardapioRoutes);

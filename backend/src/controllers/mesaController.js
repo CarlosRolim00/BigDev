@@ -15,10 +15,11 @@ import pool from "../database.js";
 
 export const createTable = async (req, res) => {
   try {
-    const { numero, capacidade, restaurante_id } = req.body;
+    const { numero, capacidade, restaurante_id, status, localizacao } = req.body;
+    const statusMesa = status || 'disponivel';
     const result = await pool.query(
-      "INSERT INTO mesas (numero, capacidade, restaurante_id) VALUES ($1, $2, $3) RETURNING *",
-      [numero, capacidade, restaurante_id]
+      "INSERT INTO mesas (numero, capacidade, restaurante_id, status, localizacao) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [numero, capacidade, restaurante_id, statusMesa, localizacao]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {

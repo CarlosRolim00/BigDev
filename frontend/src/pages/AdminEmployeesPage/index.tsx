@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Modal from '../../components/Modal';
+import { getFuncionarios, createFuncionario, updateFuncionario, deleteFuncionario } from '../../utils';
 
 // Definindo um tipo para o funcionário
 type Employee = {
+    id: number;
     name: string;
     role: string;
     email: string;
@@ -11,35 +13,116 @@ type Employee = {
     cpf: string; // Adicionado CPF ao tipo
 };
 
-// Dados mocados para os funcionários
-const employeesData: Employee[] = [
-    { name: 'Ana Silva', role: 'Gerente', email: 'ana.silva@email.com', phone: '(88) 91234-5678', cpf: '123.456.789-00' },
-    { name: 'Carlos Souza', role: 'Garçom', email: 'carlos.souza@email.com', phone: '(88) 98765-4321', cpf: '111.222.333-44' },
-    { name: 'Beatriz Lima', role: 'Cozinheira', email: 'beatriz.lima@email.com', phone: '(88) 91122-3344', cpf: '555.666.777-88' },
-];
-
 export default function AdminEmployeesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [emailError, setEmailError] = useState<boolean>(false);
+    const [emailValue, setEmailValue] = useState<string>("");   
+
+    useEffect(() => {
+        async function fetchEmployees() {
+            try {
+                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+                const restaurante_id = usuarioLogado.restaurante_id;
+                const data = await getFuncionarios(restaurante_id);
+                // Mapear os campos do backend para os nomes esperados pelo frontend
+                const mapped = data.map((f: any) => ({
+                    id: f.id,
+                    name: f.nome,
+                    role: f.cargo,
+                    cpf: f.cpf,
+                    email: f.email,
+                    phone: f.telefone
+                }));
+                setEmployees(mapped);
+            } catch (err) {
+                // Trate o erro conforme necessário
+            }
+        }
+        fetchEmployees();
+    }, []);
 
     const handleAddNewEmployee = () => {
-        setEditingEmployee(null);
-        setIsModalOpen(true);
+    setEditingEmployee(null);
+    setEmailValue("");
+    setIsModalOpen(true);
     };
 
     const handleEditEmployee = (employee: Employee) => {
-        setEditingEmployee(employee);
-        setIsModalOpen(true);
+    setEditingEmployee(employee);
+    setEmailValue(employee.email);
+    setIsModalOpen(true);
     };
 
-    const handleFormSubmit = (event: React.FormEvent) => {
-        event.preventDefault();
-        if (editingEmployee) {
-            alert(`Funcionário ${editingEmployee.name} atualizado!`);
-        } else {
-            alert('Novo funcionário adicionado!');
+    const handleDeleteEmployee = async (employee: Employee) => {
+        if (window.confirm('Tem certeza que deseja remover este funcionário?')) {
+            await deleteFuncionario(employee.id);
+            // Atualiza a lista após deletar
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+            const restaurante_id = usuarioLogado.restaurante_id;
+            const data = await getFuncionarios(restaurante_id);
+            const mapped = data.map((f: any) => ({
+                id: f.id,
+                name: f.nome,
+                role: f.cargo,
+                cpf: f.cpf,
+                email: f.email,
+                phone: f.telefone
+            }));
+            setEmployees(mapped);
         }
-        setIsModalOpen(false);
+    };
+
+    const handleFormSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+    setFormError(null);
+    setEmailError(false);
+        const form = event.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+        const restaurante_id = usuarioLogado.restaurante_id;
+        const employeeDataBackend: any = {
+            nome: formData.get('name') as string,
+            cargo: formData.get('role') as string,
+            cpf: formData.get('cpf') as string,
+            email: emailValue,
+            telefone: formData.get('phone') as string,
+            senha: formData.get('password') as string,
+            restaurante_id
+        };
+        if (editingEmployee && !employeeDataBackend.senha) {
+            delete employeeDataBackend.senha;
+        }
+        try {
+            if (editingEmployee) {
+                await updateFuncionario(editingEmployee.id, employeeDataBackend);
+            } else {
+                await createFuncionario(employeeDataBackend);
+            }
+            const data = await getFuncionarios(restaurante_id);
+            const mapped = data.map((f: any) => ({
+                id: f.id,
+                name: f.nome,
+                role: f.cargo,
+                cpf: f.cpf,
+                email: f.email,
+                phone: f.telefone
+            }));
+            setEmployees(mapped);
+            setIsModalOpen(false);
+        } catch (err: any) {
+            // Garante que qualquer erro relacionado a email será marcado
+            const msg = (err && err.message) ? err.message.toLowerCase() : '';
+            console.error('Erro ao salvar funcionário:', err);
+            if (msg.includes('email') || msg.includes('e-mail')) {
+                setFormError('E-mail já cadastrado. Escolha outro e-mail.');
+                setEmailError(true);
+            } else {
+                setFormError('Erro ao salvar funcionário.');
+            }
+        }
     };
 
     return (
@@ -63,21 +146,23 @@ export default function AdminEmployeesPage() {
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">CPF</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {employeesData.map((employee, index) => (
+                            {employees.map((employee, index) => (
                                 <tr key={index}>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.name}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.role}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.email}</td>
+                                    <td className="py-4 px-4 whitespace-nowrap">{employee.cpf}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.phone}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleEditEmployee(employee)} className="text-gray-600 hover:text-blue-600"><Edit size={18} /></button>
-                                            <button className="text-gray-600 hover:text-red-600"><Trash2 size={18} /></button>
+                                            <button onClick={() => handleDeleteEmployee(employee)} className="text-gray-600 hover:text-red-600"><Trash2 size={18} /></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -90,31 +175,43 @@ export default function AdminEmployeesPage() {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
                 <div className="flex flex-col">
                     <h2 className="text-xl font-bold mb-6">{editingEmployee ? 'Editar Funcionário' : 'Adicionar Funcionário'}</h2>
+                    {formError && (
+                        <div className="mb-2 text-red-600 text-sm font-semibold">{formError}</div>
+                    )}
                     <form className="space-y-4" onSubmit={handleFormSubmit}>
                         <div>
                             <label className="block text-sm font-medium">Nome Completo</label>
-                            <input type="text" placeholder="Nome do funcionário" defaultValue={editingEmployee?.name} className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="text" name="name" placeholder="Nome do funcionário" defaultValue={editingEmployee?.name} className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Cargo</label>
-                            <input type="text" placeholder="Ex: Garçom" defaultValue={editingEmployee?.role} className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="text" name="role" placeholder="Ex: Garçom" defaultValue={editingEmployee?.role} className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium">CPF</label>
-                            <input type="text" placeholder="000.000.000-00" defaultValue={editingEmployee?.cpf} className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="text" name="cpf" placeholder="000.000.000-00" defaultValue={editingEmployee?.cpf} className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Email</label>
-                            <input type="email" placeholder="email@exemplo.com" defaultValue={editingEmployee?.email} className="w-full mt-1 p-2 border rounded-md" />
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="email@exemplo.com"
+                                value={emailValue}
+                                onChange={e => setEmailValue(e.target.value)}
+                                className={`w-full mt-1 p-2 border rounded-md ${emailError ? 'border-red-500 bg-red-50' : ''}`}
+                                required
+                            />
                         </div>
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium">Telefone</label>
-                            <input type="tel" placeholder="(00) 00000-0000" defaultValue={editingEmployee?.phone} className="w-full mt-1 p-2 border rounded-md" />
+                            <input type="tel" name="phone" placeholder="(00) 00000-0000" defaultValue={editingEmployee?.phone} className="w-full mt-1 p-2 border rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Senha</label>
                             <input
                                 type="password"
+                                name="password"
                                 placeholder={editingEmployee ? "Deixe em branco para não alterar" : "********"}
                                 className="w-full mt-1 p-2 border rounded-md"
                             />

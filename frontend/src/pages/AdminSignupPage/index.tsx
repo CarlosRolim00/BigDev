@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // 1. Importe o useNavigate
+import { Link, useNavigate } from 'react-router-dom';
+import { registerRestauranteComGerente } from '../../utils';
 
 export default function AdminSignupPage() {
   const navigate = useNavigate(); // 2. Inicialize o hook
@@ -11,20 +12,23 @@ export default function AdminSignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log({
-      nome,
-      cnpj,
-      endereco,
-      telefone,
-      tipoCozinha,
-      email,
-      password,
-    });
-    alert('Restaurante cadastrado com sucesso!');
-    // 3. Redireciona para a página de login do admin
-    navigate('/admin/login');
+    try {
+      await registerRestauranteComGerente(
+        nome,
+        cnpj,
+        endereco,
+        telefone,
+        tipoCozinha,
+        email,
+        password
+      );
+      alert('Restaurante e gerente cadastrados com sucesso!');
+      navigate('/restaurant-login'); 
+    } catch (error: any) {
+      alert(error.message || 'Erro ao cadastrar restaurante ou gerente');
+    }
   };
 
   return (
