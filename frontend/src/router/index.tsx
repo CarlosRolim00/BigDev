@@ -12,7 +12,16 @@ import AdminLayout from "../components/AdminLayout";
 import AdminReservationsPage from "../pages/AdminReservationsPage";
 import AdminMenuPage from "../pages/AdminMenuPage";
 import AdminSettingsPage from "../pages/AdminSettingsPage";
-import AdminEmployeesPage from "../pages/AdminEmployeesPage"; // 1. Importe a nova página
+import AdminEmployeesPage from "../pages/AdminEmployeesPage";
+
+// 1. Importações do Master Admin que estavam faltando
+import MasterLoginPage from "../pages/MasterLoginPage";
+import MasterAdminLayout from "../components/MasterAdminLayout";
+import MasterDashboardPage from "../pages/MasterDashboardPage";
+import MasterRestaurantsPage from "../pages/MasterRestaurantsPage";
+import MasterUsersPage from "../pages/MasterUsersPage";
+import MasterBookingsPage from "../pages/MasterBookingsPage";
+
 
 export default function Router() {
     return (
@@ -37,7 +46,16 @@ export default function Router() {
                 <Route path="reservations" element={<AdminReservationsPage />} />
                 <Route path="menu" element={<AdminMenuPage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
-                <Route path="employees" element={<AdminEmployeesPage />} /> {/* 2. Adicione a nova rota */}
+                <Route path="employees" element={<AdminEmployeesPage />} />
+            </Route>
+
+            {/* 2. Rotas do Usuário Master (adicionadas) */}
+            <Route path="/master/login" element={<MasterLoginPage />} />
+            <Route path="/master" element={<MasterAdminLayout />}>
+                <Route path="dashboard" element={<MasterDashboardPage />} />
+                <Route path="restaurants" element={<MasterRestaurantsPage />} />
+                <Route path="users" element={<MasterUsersPage />} />
+                <Route path="bookings" element={<MasterBookingsPage />} />
             </Route>
         </Routes>
     );
