@@ -1,5 +1,14 @@
 
 import React, { useEffect, useState } from "react";
+
+// Função utilitária para garantir formato hh:mm
+function formatHour(h: string | undefined): string {
+  if (!h) return '--:--';
+  const match = h.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return h;
+  const [_, hour, min] = match;
+  return `${hour.padStart(2, '0')}:${min}`;
+}
 import RestaurantCard from "../RestaurantCard";
 import LocationCard from "../LocationCard/index";
 import OfficialSitesCard from "../OfficialSitesCard/index";
@@ -23,7 +32,9 @@ export default function Main() {
             image: `${API_BASE_URL}/restaurante/${rest.id}/imagem?v=${Date.now()}`,
             name: rest.nome || rest.name || 'Restaurante',
             address: rest.endereco || rest.address || '',
-            hours: rest.hours || '11:30 AM - 11:00 PM',
+            hours: (rest.horario_abertura && rest.horario_fechamento)
+              ? `${formatHour(rest.horario_abertura)} - ${formatHour(rest.horario_fechamento)}`
+              : '11:00 - 22:00',
             times: rest.times || [],
             activeTime: rest.activeTime || '',
             ...rest

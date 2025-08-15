@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+
+// Função utilitária para garantir formato hh:mm
+function formatHour(h: string | undefined): string {
+    if (!h) return '--:--';
+    const match = h.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return h;
+    const [_, hour, min] = match;
+    return `${hour.padStart(2, '0')}:${min}`;
+}
 import { useParams, Link } from "react-router-dom";
 import { getRestauranteById, API_BASE_URL, getCardapios } from '../../utils';
 import { MapPin, Clock, Utensils, Send } from "lucide-react";
@@ -83,7 +92,9 @@ function RestaurantPage() {
                         id: data.id,
                         name: data.nome,
                         address: data.endereco,
-                        hours: data.horario_funcionamento || '11:30 AM - 11:00 PM',
+                        hours: (data.horario_abertura && data.horario_fechamento)
+                            ? `${formatHour(data.horario_abertura)} - ${formatHour(data.horario_fechamento)}`
+                            : '11:00 - 22:00',
                         image: `${API_BASE_URL}/restaurante/${data.id}/imagem?v=${Date.now()}`,
                         ...data
                     });

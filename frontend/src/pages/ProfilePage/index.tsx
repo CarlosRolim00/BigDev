@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import ReviewModal from '../../components/ReviewModal';
 import { getReservasByCliente, API_BASE_URL, updateCliente, getClienteByUsuarioId } from '../../utils';
 export default function ProfilePage() {
+    const RESERVAS_POR_PAGINA = 5;
+    const [pagina, setPagina] = useState(1);
     // Função para cancelar reserva
     const handleCancelBooking = async (bookingId: number) => {
         try {
@@ -134,7 +136,14 @@ export default function ProfilePage() {
                                             avaliada
                                         };
                                     }));
-                                    setBookingHistory(adaptadas);
+                                    // Ordena por data (dia) e hora decrescente
+                                    const sorted = [...adaptadas].sort((a, b) => {
+                                        // Junta data e hora para comparar
+                                        const aDate = new Date(`${a.dia}T${a.hora || '00:00'}`);
+                                        const bDate = new Date(`${b.dia}T${b.hora || '00:00'}`);
+                                        return bDate.getTime() - aDate.getTime();
+                                    });
+                                    setBookingHistory(sorted);
                                 })
                                 .catch(() => setBookingHistory([]));
                         } else {
@@ -234,44 +243,62 @@ export default function ProfilePage() {
                             {bookingHistory.length === 0 ? (
                                 <div className="text-gray-500 text-center py-8">Nenhuma reserva encontrada.</div>
                             ) : (
-                                bookingHistory.map((booking) => (
-                                    <div key={booking.id} className="flex flex-col sm:flex-row items-center border-b pb-4">
-                                        <img src={booking.image} alt={booking.restaurant_name} className="w-24 h-24 object-cover rounded-md mb-4 sm:mb-0" />
-                                        <div className="ml-4 flex-grow">
-                                            <h3 className="font-bold">{booking.restaurant_name}</h3>
-                                            <p className="text-sm text-gray-600">Mesa: <span className="font-semibold">{booking.mesa}</span></p>
-                                            <p className="text-sm text-gray-600">Dia: <span className="font-semibold">{booking.dia}</span></p>
-                                            <p className="text-sm text-gray-600">Horário: <span className="font-semibold">{booking.hora}</span></p>
-                                            <p className="text-sm text-gray-600">{booking.people}</p>
+                                <>
+                                    {bookingHistory.slice((pagina-1)*RESERVAS_POR_PAGINA, pagina*RESERVAS_POR_PAGINA).map((booking) => (
+                                        <div key={booking.id} className="flex flex-col sm:flex-row items-center border-b pb-4">
+                                            <img src={booking.image} alt={booking.restaurant_name} className="w-24 h-24 object-cover rounded-md mb-4 sm:mb-0" />
+                                            <div className="ml-4 flex-grow">
+                                                <h3 className="font-bold">{booking.restaurant_name}</h3>
+                                                <p className="text-sm text-gray-600">Mesa: <span className="font-semibold">{booking.mesa}</span></p>
+                                                <p className="text-sm text-gray-600">Dia: <span className="font-semibold">{booking.dia}</span></p>
+                                                <p className="text-sm text-gray-600">Horário: <span className="font-semibold">{booking.hora}</span></p>
+                                                <p className="text-sm text-gray-600">{booking.people}</p>
+                                            </div>
+                                            <div className="flex flex-col gap-2 mt-4 sm:mt-0 items-center">
+                                                <span className={`text-xs font-semibold px-2 py-1 rounded-full mb-1 ${
+                                                    booking.status === 'cancelada' ? 'bg-red-100 text-red-600' :
+                                                    booking.status === 'confirmada' ? 'bg-green-100 text-green-700' :
+                                                    booking.status === 'pendente' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-gray-200 text-gray-600'
+                                                }`}>
+                                                    {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className={`text-sm font-semibold text-center ${booking.status === 'cancelada' ? 'text-red-600 bg-transparent border-none cursor-not-allowed' : 'text-red-600 hover:underline'}`}
+                                                    onClick={() => booking.status !== 'cancelada' && handleCancelBooking(booking.id)}
+                                                    disabled={booking.status === 'cancelada'}
+                                                >
+                                                    {booking.status === 'cancelada' ? 'Cancelada' : 'Cancelar'}
+                                                </button>
+                                                {/* 3. Botão de Avaliar */}
+                                                <button 
+                                                    onClick={() => handleOpenReviewModal(booking.restaurant_name, booking.id)}
+                                                    className={`text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 ${['cancelada','pendente'].includes((booking.status || '').toLowerCase()) || booking.avaliada ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    disabled={['cancelada','pendente'].includes((booking.status || '').toLowerCase()) || booking.avaliada}
+                                                >
+                                                    {booking.avaliada ? 'Avaliada' : 'Avaliar'}
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col gap-2 mt-4 sm:mt-0 items-center">
-                                            <span className={`text-xs font-semibold px-2 py-1 rounded-full mb-1 ${
-                                                booking.status === 'cancelada' ? 'bg-red-100 text-red-600' :
-                                                booking.status === 'confirmada' ? 'bg-green-100 text-green-700' :
-                                                booking.status === 'pendente' ? 'bg-yellow-100 text-yellow-700' :
-                                                'bg-gray-200 text-gray-600'
-                                            }`}>
-                                                {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                                            </span>
+                                    ))}
+                                    {/* Paginação */}
+                                    {bookingHistory.length > RESERVAS_POR_PAGINA && (
+                                        <div className="flex justify-center items-center gap-2 mt-6">
                                             <button
-                                                type="button"
-                                                className={`text-sm font-semibold text-center ${booking.status === 'cancelada' ? 'text-red-600 bg-transparent border-none cursor-not-allowed' : 'text-red-600 hover:underline'}`}
-                                                onClick={() => booking.status !== 'cancelada' && handleCancelBooking(booking.id)}
-                                                disabled={booking.status === 'cancelada'}
-                                            >
-                                                {booking.status === 'cancelada' ? 'Cancelada' : 'Cancelar'}
-                                            </button>
-                                            {/* 3. Botão de Avaliar */}
-                                            <button 
-                                                onClick={() => handleOpenReviewModal(booking.restaurant_name, booking.id)}
-                                                className={`text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 ${booking.status === 'cancelada' || booking.avaliada ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                disabled={booking.status === 'cancelada' || booking.avaliada}
-                                            >
-                                                {booking.avaliada ? 'Avaliada' : 'Avaliar'}
-                                            </button>
+                                                className="px-3 py-1 rounded bg-gray-200 font-semibold"
+                                                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                                                disabled={pagina === 1}
+                                            >Anterior</button>
+                                            <span className="font-semibold">Página {pagina} de {Math.ceil(bookingHistory.length / RESERVAS_POR_PAGINA)}</span>
+                                            <button
+                                                className="px-3 py-1 rounded bg-gray-200 font-semibold"
+                                                onClick={() => setPagina(p => Math.min(Math.ceil(bookingHistory.length / RESERVAS_POR_PAGINA), p + 1))}
+                                                disabled={pagina === Math.ceil(bookingHistory.length / RESERVAS_POR_PAGINA)}
+                                            >Próxima</button>
                                         </div>
-                                    </div>
-                                ))
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
