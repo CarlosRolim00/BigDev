@@ -16,16 +16,18 @@ export default function Main() {
   useEffect(() => {
     getRestaurantes()
       .then(data => {
-        const adaptados = data.map((rest: any) => ({
-          id: rest.id,
-          image: `${API_BASE_URL}/restaurante/${rest.id}/imagem?v=${Date.now()}`,
-          name: rest.nome || rest.name || 'Restaurante',
-          address: rest.endereco || rest.address || '',
-          hours: rest.hours || '11:30 AM - 11:00 PM',
-          times: rest.times || [],
-          activeTime: rest.activeTime || '',
-          ...rest
-        }));
+        const adaptados = data
+          .filter((rest: any) => (rest.status || rest.Status || '').toLowerCase() === 'ativo')
+          .map((rest: any) => ({
+            id: rest.id,
+            image: `${API_BASE_URL}/restaurante/${rest.id}/imagem?v=${Date.now()}`,
+            name: rest.nome || rest.name || 'Restaurante',
+            address: rest.endereco || rest.address || '',
+            hours: rest.hours || '11:30 AM - 11:00 PM',
+            times: rest.times || [],
+            activeTime: rest.activeTime || '',
+            ...rest
+          }));
         setRestaurantes(adaptados);
       })
       .catch(() => setErro('Erro ao buscar restaurantes'))
