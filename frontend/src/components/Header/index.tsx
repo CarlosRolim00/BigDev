@@ -32,7 +32,7 @@ export default function Header() {
     <header className="bg-white shadow px-6 py-4 flex items-center justify-between">
       {/* Título */}
       <div className="text-lg font-medium">
-        Bem Vindo ao <span className="font-bold">NomeApp</span>
+        Bem Vindo ao <span className="font-bold">Mesa Certa</span>
       </div>
 
       {/* Navegação */}
