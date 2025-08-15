@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Search } from 'lucide-react';
 import Modal from '../../components/Modal'; // 1. Importe o Modal
 
@@ -7,22 +7,47 @@ type User = {
     name: string;
     email: string;
     phone: string;
-    registered_at: string;
+    status_conta: string;
 };
 
-// Dados mocados para os clientes
-const usersData: User[] = [
-    { name: 'Jhonatan G.', email: 'jhonatan.g@email.com', phone: '(11) 91234-5678', registered_at: '2025-08-10' },
-    { name: 'Maria Souza', email: 'maria.s@email.com', phone: '(21) 98765-4321', registered_at: '2025-08-09' },
-    { name: 'Carlos Pereira', email: 'carlos.p@email.com', phone: '(31) 91122-3344', registered_at: '2025-08-08' },
-];
+
+import { getAllClientes } from '../../utils';
 
 export default function MasterUsersPage() {
-    // 2. Estados para controlar o modal e os dados do cliente em edição
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [usersData, setUsersData] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [search, setSearch] = useState('');
 
-    // Função para abrir o modal com os dados do cliente selecionado
+    useEffect(() => {
+        async function fetchUsers() {
+            setLoading(true);
+            setError('');
+            try {
+                const clientes = await getAllClientes();
+                // Mapear para o tipo User
+                const mapped = clientes.map((c: any) => {
+                    const nomeCliente = c.usuario_nome || (c.usuario && c.usuario.nome) || c.nome || c.nome_completo || c.name || '-';
+                    console.log('Cliente:', nomeCliente, 'Raw:', c);
+                    return {
+                        name: nomeCliente,
+                        email: c.email || '-',
+                        phone: c.telefone || c.phone || '-',
+                        status_conta: c.status_conta || 'desativado'
+                    };
+                });
+                setUsersData(mapped);
+            } catch (err: any) {
+                setError(err.message || 'Erro ao buscar clientes');
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchUsers();
+    }, []);
+
     const handleEditClick = (user: User) => {
         setEditingUser(user);
         setIsEditModalOpen(true);
@@ -34,6 +59,11 @@ export default function MasterUsersPage() {
         setIsEditModalOpen(false);
     };
 
+    const filteredUsers = usersData.filter(user =>
+        user.name.toLowerCase().includes(search.toLowerCase()) ||
+        user.email.toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <>
             <div className="bg-white p-6 rounded-lg shadow">
@@ -41,10 +71,12 @@ export default function MasterUsersPage() {
                     <h2 className="text-2xl font-bold">Gerenciar Clientes</h2>
                     <div className="relative w-full md:w-auto">
                         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por nome ou email..." 
+                        <input
+                            type="text"
+                            placeholder="Buscar por nome ou email..."
                             className="w-full pl-10 pr-4 py-2 border rounded-md"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
                         />
                     </div>
                 </div>
@@ -56,17 +88,27 @@ export default function MasterUsersPage() {
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Telefone</th>
-                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Data de Cadastro</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {usersData.map((user, index) => (
+                            {loading ? (
+                                <tr><td colSpan={5} className="text-center py-6">Carregando clientes...</td></tr>
+                            ) : error ? (
+                                <tr><td colSpan={5} className="text-center text-red-500 py-6">{error}</td></tr>
+                            ) : filteredUsers.length === 0 ? (
+                                <tr><td colSpan={5} className="text-center text-gray-500 py-6">Nenhum cliente encontrado.</td></tr>
+                            ) : filteredUsers.map((user, index) => (
                                 <tr key={index}>
                                     <td className="py-4 px-4 whitespace-nowrap font-medium">{user.name}</td>
                                     <td className="py-4 px-4 whitespace-nowrap text-gray-600">{user.email}</td>
                                     <td className="py-4 px-4 whitespace-nowrap text-gray-600">{user.phone}</td>
-                                    <td className="py-4 px-4 whitespace-nowrap text-gray-600">{user.registered_at}</td>
+                                    <td className="py-4 px-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.status_conta === 'ativo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {user.status_conta === 'ativo' ? 'Ativo' : 'Desativado'}
+                                        </span>
+                                    </td>
                                     <td className="py-4 px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             {/* 3. Botão de editar agora abre o modal com os dados */}

@@ -25,8 +25,10 @@ const RestaurantLogin = () => {
       const result = await loginFuncionario(email, password);
       console.log('loginFuncionario result:', result);
       if (result.usuario && result.funcionario) {
+        // Garante que o campo 'cargo' esteja presente no objeto salvo
         localStorage.setItem('usuarioLogado', JSON.stringify({
           ...result.usuario,
+          cargo: result.funcionario.cargo, // <-- campo necessário para AdminEmployeesPage
           tipo: 'funcionario',
           funcionario: result.funcionario,
           restaurante_id: result.funcionario.restaurante_id,

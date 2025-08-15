@@ -12,7 +12,7 @@ import mesaRoutes from "./routes/mesaRoutes.js";
 import reservaRoutes from "./routes/reservaRoutes.js";
 import restauranteRoutes from "./routes/restauranteRoutes.js";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
-
+import masterUsuarioRoutes from "./routes/masterUsuarioRoutes.js";
 const app = express();
 
 // Permitir requisições de qualquer origem (CORS)
@@ -32,6 +32,7 @@ app.use("/mesa", mesaRoutes);
 app.use("/reserva", reservaRoutes);
 app.use("/restaurante", restauranteRoutes);
 app.use("/usuario", usuarioRoutes);
+app.use("/master-usuario", masterUsuarioRoutes);
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");

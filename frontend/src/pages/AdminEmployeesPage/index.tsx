@@ -14,6 +14,23 @@ type Employee = {
 };
 
 export default function AdminEmployeesPage() {
+    // Verifica se o usuário logado é gerente
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+    console.log('Usuário logado:', usuarioLogado);
+    // Aceita qualquer variação de maiúsculas/minúsculas para 'gerente'
+    const isGerente = usuarioLogado.cargo && (usuarioLogado.cargo.trim().toLowerCase() === 'gerente');
+    // Função para formatar telefone brasileiro
+    function formatPhone(phone: string) {
+        if (!phone) return '';
+        // Remove tudo que não é número
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length === 11) {
+            return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+        } else if (digits.length === 10) {
+            return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+        }
+        return phone;
+    }
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -127,16 +144,19 @@ export default function AdminEmployeesPage() {
 
     return (
         <>
+            
             <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Funcionários</h2>
-                    <button
-                        onClick={handleAddNewEmployee}
-                        className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md font-semibold"
-                    >
-                        <PlusCircle size={20} />
-                        Adicionar Funcionário
-                    </button>
+                    {isGerente && (
+                        <button
+                            onClick={handleAddNewEmployee}
+                            className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md font-semibold"
+                        >
+                            <PlusCircle size={20} />
+                            Adicionar Funcionário
+                        </button>
+                    )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -154,15 +174,21 @@ export default function AdminEmployeesPage() {
                         <tbody className="divide-y divide-gray-200">
                             {employees.map((employee, index) => (
                                 <tr key={index}>
-                                    <td className="py-4 px-4 whitespace-nowrap">{employee.name}</td>
-                                    <td className="py-4 px-4 whitespace-nowrap">{employee.role}</td>
+                                    <td className="py-4 px-4 whitespace-nowrap">{employee.name.toUpperCase()}</td>
+                                    <td className="py-4 px-4 whitespace-nowrap">{employee.role.toUpperCase()}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.email}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">{employee.cpf}</td>
-                                    <td className="py-4 px-4 whitespace-nowrap">{employee.phone}</td>
+                                    <td className="py-4 px-4 whitespace-nowrap">{formatPhone(employee.phone)}</td>
                                     <td className="py-4 px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
-                                            <button onClick={() => handleEditEmployee(employee)} className="text-gray-600 hover:text-blue-600"><Edit size={18} /></button>
-                                            <button onClick={() => handleDeleteEmployee(employee)} className="text-gray-600 hover:text-red-600"><Trash2 size={18} /></button>
+                                            {isGerente ? (
+                                                <>
+                                                    <button onClick={() => handleEditEmployee(employee)} className="text-gray-600 hover:text-blue-600"><Edit size={18} /></button>
+                                                    <button onClick={() => handleDeleteEmployee(employee)} className="text-gray-600 hover:text-red-600"><Trash2 size={18} /></button>
+                                                </>
+                                            ) : (
+                                                <span style={{ color: 'red', fontWeight: 'bold', fontSize: '13px' }}>Nenhuma</span>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

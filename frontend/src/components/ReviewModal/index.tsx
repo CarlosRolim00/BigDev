@@ -5,18 +5,67 @@ type ReviewModalProps = {
     isOpen: boolean;
     onClose: () => void;
     restaurantName: string;
+    restauranteId?: number;
+    clienteId?: number;
+    bookingId?: number;
+    bookingHora?: string;
+    onAvaliacaoFeita?: (bookingId: number) => void;
 };
 
-export default function ReviewModal({ isOpen, onClose, restaurantName }: ReviewModalProps) {
+export default function ReviewModal({ isOpen, onClose, restaurantName, restauranteId, clienteId, bookingId, bookingHora, onAvaliacaoFeita }: ReviewModalProps) {
+
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-    const handleSubmit = (event: React.FormEvent) => {
+    async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
-        // Apenas simula o envio e fecha o modal
-        alert(`Avaliação para "${restaurantName}" enviada com sucesso! (Simulação)`);
-        onClose();
-    };
+        setError('');
+        setSuccess('');
+        if (!rating) {
+            setError('Selecione uma nota.');
+            return;
+        }
+        if (!restaurantName || restauranteId === undefined || clienteId === undefined) {
+            setError('Dados insuficientes para avaliação.');
+            return;
+        }
+        setLoading(true);
+        try {
+            const { createAvaliacao } = await import('../../utils');
+            // Busca a reserva selecionada do estado global window.bookingHistory
+            // Normaliza hora para HH:mm:ss
+            function normalizaHora(hora: string | undefined) {
+                if (!hora) return '';
+                const partes = hora.split(':');
+                return `${partes[0]?.padStart(2, '0') || '00'}:${partes[1]?.padStart(2, '0') || '00'}:${partes[2]?.padStart(2, '0') || '00'}`;
+            }
+            const horaFinal = normalizaHora(bookingHora);
+            console.log('Enviando avaliação com hora:', horaFinal);
+            await createAvaliacao({
+                cliente_id: clienteId,
+                restaurante_id: restauranteId,
+                nota: rating,
+                comentario: comment,
+                data: new Date().toISOString().slice(0, 10),
+                hora: horaFinal
+            });
+            setSuccess('Avaliação enviada com sucesso!');
+            setTimeout(() => {
+                setSuccess('');
+                onClose();
+                if (onAvaliacaoFeita && bookingId !== undefined) {
+                    onAvaliacaoFeita(bookingId);
+                }
+            }, 500);
+        } catch (err: any) {
+            setError(err.message || 'Erro ao enviar avaliação.');
+        } finally {
+            setLoading(false);
+        }
+    }
 
     if (!isOpen) return null;
 
@@ -34,6 +83,7 @@ export default function ReviewModal({ isOpen, onClose, restaurantName }: ReviewM
                                     key={star}
                                     onClick={() => setRating(star)}
                                     className={`mr-1 transition-colors ${star <= rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+                                    disabled={loading}
                                 >
                                     ★
                                 </button>
@@ -48,11 +98,14 @@ export default function ReviewModal({ isOpen, onClose, restaurantName }: ReviewM
                             className="w-full p-2 border rounded-md"
                             rows={4}
                             placeholder="Descreva sua experiência..."
+                            disabled={loading}
                         />
                     </div>
+                    {error && <div className="text-red-600 mb-2 text-sm font-semibold">{error}</div>}
+                    {success && <div className="text-green-600 mb-2 text-sm font-semibold">{success}</div>}
                     <div className="flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 border rounded-md font-semibold">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-black text-white rounded-md font-semibold">Enviar Avaliação</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 border rounded-md font-semibold" disabled={loading}>Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-black text-white rounded-md font-semibold" disabled={loading}>Enviar Avaliação</button>
                     </div>
                 </form>
             </div>

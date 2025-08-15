@@ -1,19 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export default function MasterLoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    // No futuro, aqui entraria a lógica de autenticação do Master
-    console.log("Tentativa de login Master:", { email, password });
-    
-    // Por enquanto, redireciona direto para um futuro dashboard
-    // A rota /master/dashboard será criada nos próximos passos
-    navigate('/master/dashboard'); 
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/master-usuario/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha: password })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || 'Usuário ou senha inválidos');
+        return;
+      }
+      const usuario = await res.json();
+      localStorage.setItem('masterUsuarioLogado', JSON.stringify({ id: usuario.id, nome: usuario.nome, email: usuario.email }));
+      navigate('/master/dashboard');
+    } catch (err) {
+      setError('Erro ao conectar com o servidor');
+    }
   };
 
   return (
@@ -23,6 +38,7 @@ export default function MasterLoginPage() {
           <h2 className="text-3xl font-bold text-white mb-2 text-center">Acesso ao Sistema</h2>
           <p className="text-center text-gray-400 mb-6">Administração da Plataforma</p>
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && <div className="text-red-400 text-center text-sm mb-2">{error}</div>}
             <div>
               <label className="block text-sm mb-1 font-medium text-gray-300">Email</label>
               <input

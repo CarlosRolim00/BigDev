@@ -1,3 +1,76 @@
+// Atualizar status do restaurante por id (mantendo os outros campos)
+export async function updateRestauranteStatus(id: string | number, status: 'ativo' | 'cancelado') {
+    // Busca o restaurante atual
+    const response = await fetch(`${API_BASE_URL}/restaurante/${id}`);
+    if (!response.ok) throw new Error('Erro ao buscar restaurante para atualizar status');
+    const restaurante = await response.json();
+    // Monta o objeto com todos os campos necessários
+    const data = {
+        nome: restaurante.nome,
+        cnpj: restaurante.cnpj,
+        endereco: restaurante.endereco,
+        telefone: restaurante.telefone,
+        tipo_cozinha: restaurante.tipo_cozinha,
+        status
+    };
+    return updateRestaurante(Number(id), data);
+}
+// Buscar todos os restaurantes (para master)
+export async function getAllRestaurantes() {
+    const response = await fetch(`${API_BASE_URL}/restaurante`);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar todos os restaurantes');
+    }
+    return response.json();
+}
+// Buscar todos os clientes (para master)
+export async function getAllClientes() {
+    const response = await fetch(`${API_BASE_URL}/cliente`);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar todos os clientes');
+    }
+    return response.json();
+}
+// Buscar todas as reservas (para master)
+export async function getAllReservas() {
+    const response = await fetch(`${API_BASE_URL}/reserva`);
+    if (!response.ok) {
+        throw new Error('Erro ao buscar todas as reservas');
+    }
+    return response.json();
+}
+// Função para criar avaliação
+export async function createAvaliacao(data: { cliente_id: number, restaurante_id: number, nota: number, comentario: string, data: string, hora?: string }) {
+    const response = await fetch(`${API_BASE_URL}/avaliacao`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao enviar avaliação');
+    }
+    return response.json();
+}
+// Upload da imagem do restaurante
+export async function uploadRestauranteImage(restaurante_id: number, file: File, form: any) {
+    const formData = new FormData();
+    formData.append('imagem', file);
+    formData.append('nome', form.nome);
+    formData.append('cnpj', form.cnpj);
+    formData.append('endereco', form.endereco);
+    formData.append('telefone', form.telefone);
+    formData.append('tipo_cozinha', form.tipo_cozinha);
+    const response = await fetch(`${API_BASE_URL}/restaurante/${restaurante_id}`, {
+        method: 'PUT',
+        body: formData
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erro ao fazer upload da imagem');
+    }
+    return response.json();
+}
 // --- CARDÁPIO ---
 export async function getCardapios() {
     const response = await fetch(`${API_BASE_URL}/cardapio`);
@@ -69,7 +142,8 @@ export async function registerRestauranteComGerente(
             email,
             senha,
             telefone, // telefone do restaurante também para o gerente
-            cargo: 'gerente', 
+            cargo: 'gerente',
+            cpf: '00000000000',
             restaurante_id: restaurante.id || restaurante._id || restaurante.restaurante_id || restaurante.restauranteId || restauranteIdFromResponse(restaurante)
         })
     });
@@ -230,6 +304,30 @@ export async function registerUser(nome: string, email: string, senha: string, t
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Erro ao cadastrar');
+    }
+    return response.json();
+}
+
+// Busca cliente pelo id do usuário
+export async function getClienteByUsuarioId(usuario_id: number) {
+    const response = await fetch(`${API_BASE_URL}/cliente/usuario/${usuario_id}`);
+    if (!response.ok) {
+        throw new Error('Cliente não encontrado para este usuário');
+    }
+    return response.json();
+}
+
+// Atualiza dados do cliente
+export async function updateCliente(id: number, data: { nome: string; email: string; telefone: string; senha: string }) {
+    const response = await fetch(`${API_BASE_URL}/cliente/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        throw new Error('Erro ao atualizar cliente');
     }
     return response.json();
 }
