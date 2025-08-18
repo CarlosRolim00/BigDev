@@ -48,8 +48,18 @@ const Login = () => {
         return;
       }
       const result = await loginUser(credential, password);
-      if (result.usuario) {
-        localStorage.setItem('usuarioLogado', JSON.stringify(result.usuario));
+      if (result.usuario && result.cliente) {
+        // Verifica se existe status_conta no cliente
+        if (!result.cliente.status_conta) {
+          alert('Não foi possível validar o status da sua conta. Entre em contato com o suporte.');
+          return;
+        }
+        if (result.cliente.status_conta.toLowerCase() !== 'ativo') {
+          alert('Seu acesso está suspenso. Entre em contato com o suporte.');
+          return;
+        }
+        // Salva ambos usuario e cliente no localStorage, se necessário
+        localStorage.setItem('usuarioLogado', JSON.stringify({ ...result.usuario, cliente: result.cliente }));
         navigate('/homescreen');
       } else {
         alert(result.message || 'Email ou senha inválidos.');

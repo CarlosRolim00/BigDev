@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Search } from 'lucide-react';
-import Modal from '../../components/Modal'; // 1. Importe o Modal
+import { Trash2, Search } from 'lucide-react';
+
 
 // Definindo um tipo para os dados do cliente
 type User = {
@@ -8,14 +8,24 @@ type User = {
     email: string;
     phone: string;
     status_conta: string;
+    id?: number;
+    senha?: string;
 };
 
 
-import { getAllClientes } from '../../utils';
+import { getAllClientes, updateCliente } from '../../utils';
+
+// Corrigir tipagem para aceitar status_conta
+type UpdateClienteData = {
+    nome: string;
+    email: string;
+    telefone: string;
+    senha: string;
+    status_conta?: string;
+};
 
 export default function MasterUsersPage() {
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
+    // Modal removido
     const [usersData, setUsersData] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -30,12 +40,13 @@ export default function MasterUsersPage() {
                 // Mapear para o tipo User
                 const mapped = clientes.map((c: any) => {
                     const nomeCliente = c.usuario_nome || (c.usuario && c.usuario.nome) || c.nome || c.nome_completo || c.name || '-';
-                    console.log('Cliente:', nomeCliente, 'Raw:', c);
                     return {
+                        id: c.id,
                         name: nomeCliente,
                         email: c.email || '-',
                         phone: c.telefone || c.phone || '-',
-                        status_conta: c.status_conta || 'desativado'
+                        status_conta: c.status_conta || 'desativado',
+                        senha: c.senha || (c.usuario && c.usuario.senha) || ''
                     };
                 });
                 setUsersData(mapped);
@@ -48,15 +59,48 @@ export default function MasterUsersPage() {
         fetchUsers();
     }, []);
 
-    const handleEditClick = (user: User) => {
-        setEditingUser(user);
-        setIsEditModalOpen(true);
-    };
 
-    const handleFormSubmit = (event: React.FormEvent) => {
-        event.preventDefault();
-        alert(`Cliente ${editingUser?.name} atualizado!`);
-        setIsEditModalOpen(false);
+    // Função para suspender cliente (status_conta = 'suspenso')
+    const handleDelete = async (user: User) => {
+        try {
+            let clienteId = user.id;
+            if (!clienteId && user.email) {
+                const cliente = await getAllClientes().then(cs => cs.find((c: any) => c.email === user.email));
+                clienteId = cliente?.id;
+            }
+            if (!clienteId) throw new Error('ID do cliente não encontrado');
+            // Buscar cliente atual para obter todos os dados, inclusive senha
+            const cliente = await getAllClientes().then(cs => cs.find((c: any) => c.id === clienteId));
+            if (!cliente) throw new Error('Cliente não encontrado');
+            // Log detalhado das informações do cliente
+            console.log('Cliente selecionado para suspender:', cliente);
+            // Atualizar apenas os dados existentes, sempre enviando a senha já existente
+            if (!cliente.senha || typeof cliente.senha !== 'string' || cliente.senha.trim() === '') {
+                alert('Não foi possível suspender: cliente não possui senha cadastrada.');
+                return;
+            }
+            const updateData: UpdateClienteData = {
+                nome: cliente.nome || cliente.usuario_nome || cliente.nome_completo || cliente.name || '-',
+                email: cliente.email || '-',
+                telefone: cliente.telefone || cliente.phone || '-',
+                senha: cliente.senha,
+                status_conta: 'suspenso'
+            };
+            console.log('Payload enviado para updateCliente:', updateData);
+            await updateCliente(clienteId, updateData);
+            // Atualiza lista e marca como suspenso visualmente
+            const clientes = await getAllClientes();
+            const mapped = clientes.map((c: any) => ({
+                id: c.id,
+                name: c.usuario_nome || (c.usuario && c.usuario.nome) || c.nome || c.nome_completo || c.name || '-',
+                email: c.email || '-',
+                phone: c.telefone || c.phone || '-',
+                status_conta: c.id === clienteId ? 'suspenso' : (c.status_conta || 'desativado')
+            }));
+            setUsersData(mapped);
+        } catch (err: any) {
+            alert(err.message || 'Erro ao suspender cliente');
+        }
     };
 
     const filteredUsers = usersData.filter(user =>
@@ -112,10 +156,7 @@ export default function MasterUsersPage() {
                                     <td className="py-4 px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             {/* 3. Botão de editar agora abre o modal com os dados */}
-                                            <button onClick={() => handleEditClick(user)} className="text-gray-600 hover:text-blue-600" title="Editar Cliente">
-                                                <Edit size={18} />
-                                            </button>
-                                            <button className="text-gray-600 hover:text-red-600" title="Suspender Usuário">
+                                            <button onClick={() => handleDelete(user)} className="text-gray-600 hover:text-red-600" title="Suspender Usuário">
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
@@ -127,30 +168,7 @@ export default function MasterUsersPage() {
                 </div>
             </div>
 
-            {/* 4. Modal para Editar Cliente */}
-            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
-                <div className="flex flex-col">
-                    <h2 className="text-xl font-bold mb-6">Editar Cliente</h2>
-                    <form className="space-y-4" onSubmit={handleFormSubmit}>
-                        <div>
-                            <label className="block text-sm font-medium">Nome Completo</label>
-                            <input type="text" defaultValue={editingUser?.name} className="w-full mt-1 p-2 border rounded-md" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Email</label>
-                            <input type="email" defaultValue={editingUser?.email} className="w-full mt-1 p-2 border rounded-md" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Telefone</label>
-                            <input type="tel" defaultValue={editingUser?.phone} className="w-full mt-1 p-2 border rounded-md" />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                             <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border rounded-md font-semibold">Cancelar</button>
-                             <button type="submit" className="px-4 py-2 bg-black text-white rounded-md font-semibold">Salvar Alterações</button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
+
         </>
     );
 }

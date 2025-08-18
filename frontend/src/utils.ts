@@ -318,7 +318,10 @@ export async function getClienteByUsuarioId(usuario_id: number) {
 }
 
 // Atualiza dados do cliente
-export async function updateCliente(id: number, data: { nome: string; email: string; telefone: string; senha: string }) {
+export async function updateCliente(
+    id: number,
+    data: { nome: string; email: string; telefone: string; senha: string; status_conta?: string }
+) {
     const response = await fetch(`${API_BASE_URL}/cliente/${id}`, {
         method: 'PUT',
         headers: {

@@ -16,7 +16,9 @@ type Booking = {
 import { getAllReservas } from '../../utils';
 
 const getStatusClass = (status: string) => {
-    return status === 'Confirmada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+    if (status === 'Confirmada') return 'bg-green-100 text-green-700';
+    if (status === 'Pendente') return 'bg-yellow-100 text-yellow-700';
+    return 'bg-red-100 text-red-700';
 };
 
 export default function MasterBookingsPage() {
@@ -27,7 +29,7 @@ export default function MasterBookingsPage() {
     const [searchRestaurant, setSearchRestaurant] = useState('');
     const [searchDate, setSearchDate] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 11;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     useEffect(() => {
@@ -81,18 +83,43 @@ export default function MasterBookingsPage() {
                     if (r.cliente_id) return `ID: ${r.cliente_id}`;
                     return '-';
                 };
-                const mapped = reservas.map((r: any) => ({
-                    restaurant: getRestaurantName(r),
-                    client: getClientName(r),
-                    date: formatDate(r.dia || r.data || '-'),
-                    time: formatTime(r.hora || '-'),
-                    people: r.qtd_pessoas || r.pessoas || r.qtd || r.qtd_pessoa || 1,
-                    status: r.status ? (r.status.charAt(0).toUpperCase() + r.status.slice(1).toLowerCase()) : '-',
-                    table: r.mesa_id || r.table || undefined,
-                    rawTime: r.hora || '-'
-                }));
+                const mapped = reservas.map((r: any) => {
+                    let status = '-';
+                    if (r.status) {
+                        // Normaliza para primeira letra maiúscula, restante minúscula
+                        status = r.status.charAt(0).toUpperCase() + r.status.slice(1).toLowerCase();
+                        // Se vier "pendente" ou "PENDENTE", normaliza para "Pendente"
+                        if (r.status.toLowerCase() === 'pendente') status = 'Pendente';
+                    }
+                    return {
+                        restaurant: getRestaurantName(r),
+                        client: getClientName(r),
+                        date: formatDate(r.dia || r.data || '-'),
+                        time: formatTime(r.hora || '-'),
+                        people: r.qtd_pessoas || r.pessoas || r.qtd || r.qtd_pessoa || 1,
+                        status,
+                        table: r.mesa_id || r.table || undefined,
+                        rawTime: r.hora || '-'
+                    };
+                });
                 console.log('Reservas mapeadas:', mapped);
-                setBookingsData(mapped);
+                // Ordenar por data e hora decrescentes (mais recentes no topo)
+                const sorted = mapped.sort((a, b) => {
+                    // Converter datas para formato yyyy-mm-dd para comparação
+                    const parseDate = (date: string) => {
+                        const [day, month, year] = date.split('/');
+                        return `${year}-${month}-${day}`;
+                    };
+                    const dateA = parseDate(a.date);
+                    const dateB = parseDate(b.date);
+                    // Se datas forem iguais, comparar hora
+                    if (dateA === dateB) {
+                        // Hora no formato hh:mm
+                        return (b.time || '').localeCompare(a.time || '');
+                    }
+                    return dateB.localeCompare(dateA);
+                });
+                setBookingsData(sorted);
             } catch (err: any) {
                 setError(err.message || 'Erro ao buscar reservas');
             } finally {
@@ -154,7 +181,7 @@ export default function MasterBookingsPage() {
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Pessoas</th>
                                 <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                                {/* <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Ações</th> */}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -192,12 +219,11 @@ export default function MasterBookingsPage() {
                                                     {booking.status}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-4 whitespace-nowrap">
-                                                {/* 3. Botão de editar agora abre o modal */}
+                                            {/* <td className="py-4 px-4 whitespace-nowrap">
                                                 <button onClick={() => handleEditClick(booking)} className="text-gray-600 hover:text-blue-600" title="Editar Reserva">
                                                     <Edit size={18} />
                                                 </button>
-                                            </td>
+                                            </td> */}
                                         </tr>
                                     ))}
                                     {/* Paginação */}

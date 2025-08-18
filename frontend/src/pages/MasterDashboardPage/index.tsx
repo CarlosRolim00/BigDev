@@ -141,6 +141,7 @@ function PendingRestaurantsPanel() {
     );
 }
 
+
 const chartOptions = {
     responsive: true,
     plugins: {
@@ -148,16 +149,79 @@ const chartOptions = {
         title: { display: true, text: 'Reservas nos Últimos 7 Dias' },
     },
 };
-const chartData = {
-    labels: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'],
-    datasets: [
-        {
-            label: 'Nº de Reservas',
-            data: [12, 19, 8, 15, 25, 32, 28],
-            backgroundColor: 'rgba(37, 99, 235, 0.8)',
-        },
-    ],
-};
+
+import type { ChartData } from 'chart.js';
+
+function useReservasChartData() {
+    const [chartData, setChartData] = React.useState<ChartData<'bar', number[], string>>({
+        labels: [],
+        datasets: [
+            {
+                label: 'Nº de Reservas',
+                data: [],
+                backgroundColor: 'rgba(37, 99, 235, 0.8)',
+            },
+        ],
+    });
+    React.useEffect(() => {
+        async function fetchData() {
+            try {
+                const reservas = await getAllReservas();
+                // Contar reservas por dia nos últimos 7 dias
+                const today = new Date();
+                const dias = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    dias.push(d);
+                }
+                const labels = dias.map(d => d.toLocaleDateString('pt-BR', { weekday: 'short' }));
+                const counts = dias.map(d => {
+                    const diaStr = d.toISOString().slice(0, 10);
+                    return reservas.filter((r: any) => {
+                        const data = r.dia || r.data || r.data_reserva || r.dataReserva;
+                        if (!data) return false;
+                        // Normaliza para yyyy-mm-dd
+                        let dataNorm = data;
+                        if (typeof data === 'string' && data.includes('/')) {
+                            // dd/mm/yyyy
+                            const [dd, mm, yyyy] = data.split('/');
+                            dataNorm = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+                        } else if (typeof data === 'string' && data.length > 10) {
+                            // ISO string
+                            dataNorm = data.slice(0, 10);
+                        }
+                        return dataNorm === diaStr;
+                    }).length;
+                });
+                setChartData({
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Nº de Reservas',
+                            data: counts,
+                            backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                        },
+                    ],
+                });
+            } catch {
+                // fallback
+                setChartData({
+                    labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+                    datasets: [
+                        {
+                            label: 'Nº de Reservas',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                        },
+                    ],
+                });
+            }
+        }
+        fetchData();
+    }, []);
+    return chartData;
+}
 
 export default function MasterDashboardPage() {
     const [metrics, setMetrics] = React.useState({ clientes: 0, restaurantes: 0, reservas: 0 });
@@ -207,7 +271,7 @@ export default function MasterDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Gráfico de Atividade (ocupando 2 colunas) */}
             <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow">
-                <Bar options={chartOptions} data={chartData} />
+                <Bar options={chartOptions} data={useReservasChartData()} />
             </div>
             <PendingRestaurantsPanel />
         </div>

@@ -91,7 +91,7 @@ export const createCliente = async (req, res) => {
 export const getClientes = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT c.*, u.nome as usuario_nome, u.email, u.telefone, u.data_cadastro
+      `SELECT c.*, u.nome as usuario_nome, u.email, u.telefone, u.data_cadastro, u.senha
        FROM cliente c
        JOIN usuario u ON c.usuario_id = u.id`
     );
@@ -138,8 +138,12 @@ export const updateCliente = async (req, res) => {
       status_conta = null,
     } = req.body;
 
+    // LOG: payload recebido
+    console.log('--- updateCliente ---');
+    console.log('ID param:', id);
+    console.log('Payload recebido:', req.body);
+
     // Busca usuario_id do cliente
-    console.log('ID recebido para updateCliente:', id);
     const clienteResult = await client.query(
       "SELECT usuario_id FROM cliente WHERE id = $1",
       [id]
@@ -152,17 +156,30 @@ export const updateCliente = async (req, res) => {
     }
     const usuario_id = clienteResult.rows[0].usuario_id;
 
+    // LOG: valores usados na query de update
+    console.log('Valores para update usuario:', [nome, email, senha, telefone, usuario_id]);
+
     // Atualiza usuário
     const result = await client.query(
       "UPDATE usuario SET nome = $1, email = $2, senha = $3, telefone = $4 WHERE id = $5 RETURNING *",
       [nome, email, senha, telefone, usuario_id]
     );
 
+    // Atualiza status_conta do cliente, se enviado
+    if (status_conta !== null && status_conta !== undefined) {
+      console.log('Atualizando status_conta do cliente:', status_conta);
+      await client.query(
+        "UPDATE cliente SET status_conta = $1 WHERE id = $2",
+        [status_conta, id]
+      );
+    }
+
     await client.query("COMMIT");
     res.status(200).json(result.rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
-    res.status(400).json({ message: error.message });
+    console.error('Erro no updateCliente:', error);
+    res.status(400).json({ message: error.message, details: error });
   } finally {
     client.release();
   }
